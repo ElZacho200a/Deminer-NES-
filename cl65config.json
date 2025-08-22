@@ -1,0 +1,5 @@
+{
+  "executable": "E:\\NES_COMPILER\\bin\\cl65",
+  "input": "deminer.s",
+  "params": "--verbose --target nes -o deminer.nes"
+}

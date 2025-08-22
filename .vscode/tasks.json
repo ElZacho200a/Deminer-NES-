@@ -1,0 +1,27 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"problemMatcher": [
+				"$ca65",
+				"$ld65"
+			],
+			"command": "E:\\NES_COMPILER\\bin\\cl65.exe",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"args": [
+				"--verbose",
+				"--target", "nes",
+				"-o", "deminer.nes",
+				"deminer.s"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"label": "ca65: Build without config"
+		}
+	]
+}
