@@ -22,6 +22,12 @@
   temp: .res 1
   pad: .res 1
   timer: .res 1
+  q_head: .res 1
+  q_tail: .res 1
+  save_a: .res 1
+  save_x: .res 1
+  save_y: .res 1
+  seed: .res 1
 .segment "RODATA"
 palettes:
    ; Background Palette
@@ -36,7 +42,49 @@ palettes:
   .incbin "chars.chr"   ; include the CHR data from chars.chr file
 .segment "BSS"
   .res $0200     ; reserve 512 bytes of zeroed memory     
+  q_start:.res 256
+  matrix: .res 256 ;; 16x16 grid
 .segment "CODE"
+;;Custom ABI
+.macro CALL_PROC procname, arg1,  arg2, arg3
+    .ifnblank arg1
+        sta save_a
+        lda arg1
+    .endif
+    .ifnblank arg2
+        stx save_x
+        ldx arg2
+    .endif
+    .ifnblank arg3
+        sty save_y
+        ldy arg3
+    .endif
+    jsr procname
+    ;; restore registers exept for A (Return value)
+
+    .ifnblank arg2
+      
+        ldx save_x
+    .endif
+    .ifnblank arg3
+        
+        ldy save_y
+    .endif
+   
+.endmacro 
+
+.macro adx arg
+   
+    pha 
+    txa 
+     clc
+    adc #arg
+    tax 
+    pla
+.endmacro
+
+;;END ABI
+
 
 .proc wait_ppu_ready
   bit $2002
@@ -91,10 +139,13 @@ sei		; disable IRQs
     inx
     bne clear_memory ; clear 256 bytes of memory
 ;; setup base value
+  lda #$A6
+  sta seed
   lda #$0b ;; X pos
   sta Cursor_x
   lda #$0c ;; Y pos
   sta Cursor_y
+  
 ;;
   jsr wait_ppu_ready ;; second wait for PPU to be ready
   jsr load_palette ;; load the palette
@@ -108,6 +159,48 @@ sei		; disable IRQs
 forever:
   jmp forever
 
+;Generate Random Matrix
+.proc GenerateMatrix
+  ldx #$00
+@loop:
+  jsr randomCoinFlip
+  sta matrix, x
+  inx
+  bne @loop
+;;ici x == 0
+NeighborLoop:
+  lda matrix, x
+  beq no_mine
+  jsr getNeighborMines
+  sta matrix, x
+  no_mine:
+  inx
+  bne NeighborLoop
+  rts
+.endproc
+.proc getNeighborMines
+
+  ;On place le curseur en haut à gauche
+  txa
+  clc
+  sbc #$11 ;; coin supérieur gauche
+  
+  tax
+
+  lda #00
+.repeat 3
+  clc
+   adc matrix, x
+   inx
+    adc matrix, x
+   inx
+    adc matrix, x
+   inx
+   adx 13
+.endrepeat 
+
+  rts
+.endproc
 
  ;;Macros
  .macro drawChar px, py, charIndex
@@ -248,12 +341,14 @@ nmi:
   ;jsr DrawFirstEmptySprite ;; Draw the first empty sprite
  
   jsr DrawFirstEmptySprite ;; Draw the first empty sprite
+  
   inc timer
   lda timer
   cmp #$06 ;; every 6 frames 
   bne not_time 
   lda #$00
   sta timer
+
   jsr HandleInput
   not_time:
   jsr drawCursor
@@ -261,3 +356,47 @@ nmi:
 
 rti
  
+;;Utils Proc 
+
+.proc enqueue 
+ldx q_tail
+sta q_start, x
+inc q_tail
+rts
+.endproc
+
+.proc dequeue 
+ldx q_head
+lda q_start, x
+inc q_head
+rts
+.endproc
+
+.proc random
+  lda seed
+  ; LFSR algorithm
+  lsr a
+  bcc no_xor
+  eor #$B8 ; Polynomial x^8 + x^6 + x^5 + x^4 + 1
+  sta seed
+  jmp done
+no_xor:
+  sta seed
+done:
+  rts
+.endproc
+
+.proc randomCoinFlip
+  lda seed
+  ; LFSR algorithm
+  lsr a
+  bcc no_xor
+  eor #$B8 ; Polynomial x^8 + x^6 + x^5 + x^4 + 1
+  sta seed
+  jmp done
+no_xor:
+  sta seed
+done:
+  and #$01 ;; keep only the least significant bit
+  rts
+.endproc
