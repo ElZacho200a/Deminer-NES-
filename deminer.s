@@ -82,7 +82,14 @@ palettes:
     tax 
     pla
 .endmacro
-
+.proc mod2y
+    pha 
+    tya 
+     and #$01
+    tya
+    pla
+    rts
+.endproc
 ;;END ABI
 
 
@@ -138,13 +145,7 @@ sei		; disable IRQs
     sta $0700, x
     inx
     bne clear_memory ; clear 256 bytes of memory
-;; setup base value
-  lda #$A6
-  sta seed
-  lda #$0b ;; X pos
-  sta Cursor_x
-  lda #$0c ;; Y pos
-  sta Cursor_y
+;;
   
 ;;
   jsr wait_ppu_ready ;; second wait for PPU to be ready
@@ -155,7 +156,14 @@ sei		; disable IRQs
   sta $2000
   lda #%00011110	; Enable Sprites
   sta $2001
-
+ ;;setup base value
+  lda #$A6
+  sta seed
+  lda #$0b ;; X pos
+  sta Cursor_x
+  lda #$0c ;; Y pos
+  sta Cursor_y
+  jsr GenerateMatrix
 forever:
   jmp forever
 
@@ -168,12 +176,14 @@ forever:
   inx
   bne @loop
 ;;ici x == 0
+ldx #$00
 NeighborLoop:
   lda matrix, x
-  beq no_mine
+  bne mine
   jsr getNeighborMines
+  asl a ;; les cases vides sont toute paire
   sta matrix, x
-  no_mine:
+  mine:
   inx
   bne NeighborLoop
   rts
@@ -190,15 +200,16 @@ NeighborLoop:
   lda #00
 .repeat 3
   clc
-   adc matrix, x
+  .repeat 3
+   ldy matrix, x
+    jsr mod2y
+    sty save_y
+    adc save_y
    inx
-    adc matrix, x
-   inx
-    adc matrix, x
-   inx
-   adx 13
-.endrepeat 
+   .endrepeat
+   adx 12
 
+.endrepeat 
   rts
 .endproc
 
