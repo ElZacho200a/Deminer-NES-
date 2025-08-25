@@ -191,6 +191,7 @@ NeighborLoop:
 .endproc
 .proc getNeighborMines
 
+  stx save_x
   ;On place le curseur en haut à gauche
   txa
   clc
@@ -211,6 +212,7 @@ NeighborLoop:
    adx 12
 
 .endrepeat  
+ldx save_x
   rts
 .endproc
 
