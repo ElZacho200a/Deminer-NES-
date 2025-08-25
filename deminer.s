@@ -151,6 +151,7 @@ sei		; disable IRQs
   jsr wait_ppu_ready ;; second wait for PPU to be ready
   jsr load_palette ;; load the palette
   jsr FillBackground ;; Fill the background with the palette
+   jsr GenerateMatrix
  enable_rendering:
   lda #%10000000	; Enable NMI
   sta $2000
@@ -163,7 +164,7 @@ sei		; disable IRQs
   sta Cursor_x
   lda #$0c ;; Y pos
   sta Cursor_y
-  jsr GenerateMatrix
+ 
 forever:
   jmp forever
 
@@ -209,7 +210,7 @@ NeighborLoop:
    .endrepeat
    adx 12
 
-.endrepeat 
+.endrepeat  
   rts
 .endproc
 
@@ -226,7 +227,7 @@ NeighborLoop:
  .endmacro
 
 .proc DrawFirstEmptySprite
-ldx #$00  ; Start with sprite index 0
+  ldx #$00  ; Start with sprite index 0
   lda  #$00
   sta $2003  ; Set SPR-RAM address to 0
 @loop:
@@ -399,15 +400,16 @@ done:
 
 .proc randomCoinFlip
   lda seed
+  bne nonNull
+  lda #$A1 ;; initial seed value if seed was 0
+
+nonNull:
   ; LFSR algorithm
   lsr a
-  bcc no_xor
+  bcc done
   eor #$B8 ; Polynomial x^8 + x^6 + x^5 + x^4 + 1
-  sta seed
-  jmp done
-no_xor:
-  sta seed
 done:
+  sta seed
   and #$01 ;; keep only the least significant bit
   rts
 .endproc
