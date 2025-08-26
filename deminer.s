@@ -152,6 +152,7 @@ sei		; disable IRQs
   jsr load_palette ;; load the palette
   jsr FillBackground ;; Fill the background with the palette
    jsr GenerateMatrix
+   jsr FillMineField
  enable_rendering:
   lda #%10000000	; Enable NMI
   sta $2000
@@ -216,6 +217,61 @@ ldx save_x
   rts
 .endproc
 
+.proc setPPUAdress
+  pha
+  lda $2002
+  sty $2006
+  stx $2006
+  pla
+  rts
+.endproc
+.proc fillLine
+  pha
+    txa  ;; Save a and x in stack
+    pha 
+
+    ldx #$00
+    @loop:
+    lda matrix , x
+    stx $2007
+    cpx #$10
+    bne @loop
+
+  pla ;; popping x and a 
+  tax
+  pla
+  rts
+.endproc
+
+.proc FillMineField
+;; On change l'affichage dans la nametables
+ ; Incrément +1 (bit2=0 de $2000)
+  lda $2000
+  and #%11111011
+  sta $2000
+
+   ; Set PPU address to $2000
+  lda $2002     ; Reset the PPU latch
+  ldx #$80 ;Low byte of PPU address
+  ldy #$22 ;High byte of PPU address
+   ;; 32 x 30 tiles
+ 
+ jsr setPPUAdress
+  ldx #00
+  @loop:
+
+  lda matrix ,x 
+  sta $2007
+  inx 
+  bne @loop
+  
+
+
+rts
+.endproc
+
+
+
  ;;Macros
  .macro drawChar px, py, charIndex
   lda #py
@@ -266,6 +322,7 @@ ldx save_x
   iny
   cpy #$04
   bne @loop  
+  ;; PPU at 2C00
   rts
 .endproc
 
